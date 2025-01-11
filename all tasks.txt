@@ -1,0 +1,163 @@
+task1
+import factory
+from models import Product
+
+class ProductFactory(factory.Factory):
+    class Meta:
+        model = Product
+
+    name = factory.Faker('word')
+    category = factory.Faker('word')
+    price = factory.Faker('random_number')
+    available = factory.Faker('boolean')
+
+task2
+import unittest
+from models import Product
+from factories import ProductFactory
+
+class TestProductModel(unittest.TestCase):
+    def test_create_product(self):
+        product = ProductFactory()
+        self.assertIsNotNone(product.id)
+
+    def test_update_product(self):
+        product = ProductFactory()
+        product.name = "Updated Name"
+        self.assertEqual(product.name, "Updated Name")
+
+    def test_delete_product(self):
+        product = ProductFactory()
+        product.delete()
+        self.assertIsNone(Product.find(product.id))
+
+    def test_list_all_products(self):
+        products = Product.all()
+        self.assertGreaterEqual(len(products), 0)
+
+    def test_find_by_name(self):
+        product = ProductFactory(name="TestProduct")
+        result = Product.find_by_name("TestProduct")
+        self.assertIsNotNone(result)
+
+    def test_find_by_category(self):
+        product = ProductFactory(category="Electronics")
+        result = Product.find_by_category("Electronics")
+        self.assertIsNotNone(result)
+
+    def test_find_by_availability(self):
+        product = ProductFactory(available=True)
+        result = Product.find_by_availability(True)
+        self.assertIsNotNone(result)
+
+
+task3
+import unittest
+from service.routes import app
+
+class TestProductRoutes(unittest.TestCase):
+    def test_read_product(self):
+        response = app.test_client().get("/products/1")
+        self.assertEqual(response.status_code, 200)
+
+    def test_update_product(self):
+        response = app.test_client().put("/products/1", json={"name": "Updated Product"})
+        self.assertEqual(response.status_code, 200)
+
+    def test_delete_product(self):
+        response = app.test_client().delete("/products/1")
+        self.assertEqual(response.status_code, 204)
+
+    def test_list_all_products(self):
+        response = app.test_client().get("/products")
+        self.assertEqual(response.status_code, 200)
+
+    def test_list_by_name(self):
+        response = app.test_client().get("/products?name=TestProduct")
+        self.assertEqual(response.status_code, 200)
+
+    def test_list_by_category(self):
+        response = app.test_client().get("/products?category=Electronics")
+        self.assertEqual(response.status_code, 200)
+
+    def test_list_by_availability(self):
+        response = app.test_client().get("/products?available=True")
+        self.assertEqual(response.status_code, 200)
+
+task4
+from flask import Flask, jsonify, request
+from models import Product
+
+app = Flask(__name__)
+
+@app.route('/products/<int:id>', methods=['GET'])
+def get_product(id):
+    product = Product.find(id)
+    return jsonify(product.serialize()), 200
+
+@app.route('/products/<int:id>', methods=['PUT'])
+def update_product(id):
+    data = request.get_json()
+    product = Product.find(id)
+    product.update(data)
+    return jsonify(product.serialize()), 200
+
+@app.route('/products/<int:id>', methods=['DELETE'])
+def delete_product(id):
+    product = Product.find(id)
+    product.delete()
+    return '', 204
+
+@app.route('/products', methods=['GET'])
+def list_all_products():
+    products = Product.all()
+    return jsonify([product.serialize() for product in products]), 200
+
+task5
+from behave import given
+from models import Product
+
+@given('the following products exist')
+def step_impl(context):
+    for row in context.table:
+        Product(name=row['name'], category=row['category'], available=row['available']).save()
+
+task6
+Feature: Product Management
+
+  Scenario: Read a product
+    When I visit the "/products/1"
+    Then the product details should be displayed
+
+  Scenario: Update a product
+    When I send a PUT request to "/products/1" with the following data:
+    | name | Updated Product |
+    Then the product should be updated
+
+  Scenario: Delete a product
+    When I send a DELETE request to "/products/1"
+    Then the product should be deleted
+
+  Scenario: List all products
+    When I visit "/products"
+    Then all products should be listed
+
+  Scenario: Search products by name
+    When I search for products with name "TestProduct"
+    Then products with that name should be listed
+
+  Scenario: Search products by category
+    When I search for products with category "Electronics"
+    Then products in that category should be listed
+
+task 7
+from behave import when, then
+from service.routes import app
+
+@when('I visit the "{url}"')
+def step_impl(context, url):
+    context.response = app.test_client().get(url)
+
+@then('the product details should be displayed')
+def step_impl(context):
+    assert context.response.status_code == 200
